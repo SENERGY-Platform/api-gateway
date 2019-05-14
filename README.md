@@ -10,10 +10,11 @@ docker build -t kong .
 # Notes
 - this change has to be made to the nginx.conf file because the request headers from keycloak are too big for the default configuration
 - then the response containing the access token does not get forwared to the user
+- changes are applied via ENV
 ```
-proxy_buffer_size   128k;
+# proxy_buffer_size   128k; currently not in use
 proxy_buffers   4 256k;
-proxy_busy_buffers_size   256k;
+# proxy_busy_buffers_size   256k; currently not in use
 ```
 
 - Kong versions > 0.10 need postgres 9.5 minimum

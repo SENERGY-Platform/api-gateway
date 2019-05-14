@@ -1,4 +1,4 @@
-local responses = require "kong.tools.responses"
+local kong_response = kong.response
 local http = require"socket.http"
 local ltn12 = require"ltn12"
 local JSON = require "kong.plugins.mockup.json"
@@ -30,7 +30,7 @@ function _M.execute(conf)
     ngx.log(ngx.NOTICE,status)
     
     if code > 299 then
-      return responses.send(code,table.concat(response_body))
+      return kong_response.send(code,table.concat(response_body))
     end 
 
     local response_decoded = cjson.decode(table.concat(response_body))
