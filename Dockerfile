@@ -9,3 +9,4 @@ WORKDIR /kong-mockup-plugin
 RUN luarocks make *.rockspec
 
 ENV KONG_NINGX_PROX_PROXY_BUFFERS 4 256k
+ENV KONG_PLUGINS mockup,middleman
