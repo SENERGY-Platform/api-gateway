@@ -52,7 +52,7 @@ function _M.execute(conf)
   ok, err = sock:connect(host, port)
   if not ok then
     ngx.log(ngx.ERR, name .. "failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
-    return
+    return kong_response.exit(500, "internal error")
   end
 
   if parsed_url.scheme == HTTPS then
@@ -71,7 +71,7 @@ function _M.execute(conf)
 
   if err then 
     ngx.log(ngx.ERR, name .. "failed to read response status from " .. host .. ":" .. tostring(port) .. ": ", err)
-    return
+    return kong_response.exit(500, "internal error")
   end
 
   local status_code = tonumber(string.match(line, "%s(%d%d%d)%s"))
@@ -81,7 +81,7 @@ function _M.execute(conf)
     line, err = sock:receive("*l")
     if err then
       ngx.log(ngx.ERR, name .. "failed to read header " .. host .. ":" .. tostring(port) .. ": ", err)
-      return
+      return kong_response.exit(500, "internal error")
     end
 
     local pair = ngx_re_match(line, "(.*):\\s*(.*)", "jo")
@@ -94,13 +94,13 @@ function _M.execute(conf)
   local body, err = sock:receive(tonumber(headers['content-length']))
   if err then
     ngx.log(ngx.ERR, name .. "failed to read body " .. host .. ":" .. tostring(port) .. ": ", err)
-    return
+    return kong_response.exit(500, "internal error")
   end
 
   ok, err = sock:setkeepalive(conf.keepalive)
   if not ok then
     ngx.log(ngx.ERR, name .. "failed to keepalive to " .. host .. ":" .. tostring(port) .. ": ", err)
-    return
+    return kong_response.exit(500, "internal error")
   end
 
   if status_code > 299 then
@@ -115,7 +115,7 @@ function _M.execute(conf)
       response_body = string.match(body, "%b{}")
     end
 
-    return kong_response.send(status_code, response_body)
+    return kong_response.exit(status_code, response_body)
   end
 
 end
