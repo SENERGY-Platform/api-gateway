@@ -52,26 +52,28 @@ function _M.execute(conf)
   ok, err = sock:connect(host, port)
   if not ok then
     ngx.log(ngx.ERR, name .. "failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
-    return kong_response.exit(500, "internal error")
+    return kong_response.exit(502, "Bad Gateway: Could not connect to auth-service")
   end
 
   if parsed_url.scheme == HTTPS then
     local _, err = sock:sslhandshake(true, host, false)
     if err then
       ngx.log(ngx.ERR, name .. "failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
+	  return kong_response.exit(502, "Bad Gateway: Could establish HTTPS connection with auth-service")
     end
   end
 
   ok, err = sock:send(payload)
   if not ok then
     ngx.log(ngx.ERR, name .. "failed to send data to " .. host .. ":" .. tostring(port) .. ": ", err)
+	return kong_response.exit(502, "Bad Gateway: Could send request to auth-service")
   end
 
   local line, err = sock:receive("*l")
 
   if err then 
     ngx.log(ngx.ERR, name .. "failed to read response status from " .. host .. ":" .. tostring(port) .. ": ", err)
-    return kong_response.exit(500, "internal error")
+    return kong_response.exit(502, "Bad Gateway: Could not read status code from auth-service")
   end
 
   local status_code = tonumber(string.match(line, "%s(%d%d%d)%s"))
@@ -81,7 +83,7 @@ function _M.execute(conf)
     line, err = sock:receive("*l")
     if err then
       ngx.log(ngx.ERR, name .. "failed to read header " .. host .. ":" .. tostring(port) .. ": ", err)
-      return kong_response.exit(500, "internal error")
+      return kong_response.exit(502, "Bad Gateway: Could not read header from auth-service")
     end
 
     local pair = ngx_re_match(line, "(.*):\\s*(.*)", "jo")
@@ -94,18 +96,18 @@ function _M.execute(conf)
   local body, err = sock:receive(tonumber(headers['content-length']))
   if err then
     ngx.log(ngx.ERR, name .. "failed to read body " .. host .. ":" .. tostring(port) .. ": ", err)
-    return kong_response.exit(500, "internal error")
+    return kong_response.exit(502, "Bad Gateway: Could not read body from auth-service")
   end
 
   ok, err = sock:setkeepalive(conf.keepalive)
   if not ok then
     ngx.log(ngx.ERR, name .. "failed to keepalive to " .. host .. ":" .. tostring(port) .. ": ", err)
-    return kong_response.exit(500, "internal error")
+    return kong_response.exit(502, "Bad Gateway: Could not set connection keepalive with auth-service")
   end
 
   if err then 
     ngx.log(ngx.ERR, name .. "failed to read response from " .. host .. ":" .. tostring(port) .. ": ", err)
-	return kong_response.exit(500, "internal error")
+	return kong_response.exit(502, "Bad Gateway: Could not read response from auth-service")
   end
 
   local response_body
