@@ -103,19 +103,22 @@ function _M.execute(conf)
     return kong_response.exit(500, "internal error")
   end
 
+  if err then 
+    ngx.log(ngx.ERR, name .. "failed to read response from " .. host .. ":" .. tostring(port) .. ": ", err)
+	return kong_response.exit(500, "internal error")
+  end
+
+  local response_body
+  if conf.response == "table" then 
+    response_body = JSON:decode(string.match(body, "%b{}"))
+  else
+    response_body = string.match(body, "%b{}")
+  end
+
   if status_code > 299 then
-    if err then 
-      ngx.log(ngx.ERR, name .. "failed to read response from " .. host .. ":" .. tostring(port) .. ": ", err)
-    end
-
-    local response_body
-    if conf.response == "table" then 
-      response_body = JSON:decode(string.match(body, "%b{}"))
-    else
-      response_body = string.match(body, "%b{}")
-    end
-
     return kong_response.exit(status_code, response_body)
+  else
+    kong.service.request.add_header("X-UserID", response_body["userID"])
   end
 
 end
