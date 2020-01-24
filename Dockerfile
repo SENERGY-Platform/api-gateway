@@ -1,12 +1,12 @@
-FROM kong:1.2.3
+FROM kong:2.0.0
 
 COPY kong-middleman-plugin /kong-middleman-plugin
 WORKDIR /kong-middleman-plugin
-RUN luarocks make *.rockspec
+RUN luarocks make *.rockspec --local
 
 COPY kong-mockup-plugin /kong-mockup-plugin
 WORKDIR /kong-mockup-plugin
-RUN luarocks make *.rockspec
+RUN luarocks make *.rockspec --local
 
 ENV KONG_NINGX_PROX_PROXY_BUFFERS 4 256k
 ENV KONG_PLUGINS mockup,middleman
