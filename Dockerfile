@@ -1,4 +1,4 @@
-FROM kong:1.2.3
+FROM kong:1.5.0
 
 COPY kong-middleman-plugin /kong-middleman-plugin
 WORKDIR /kong-middleman-plugin
