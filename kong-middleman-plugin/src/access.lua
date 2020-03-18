@@ -120,7 +120,8 @@ function _M.execute(conf)
   if status_code > 299 then
     return kong_response.exit(status_code, response_body)
   else
-    kong.service.request.add_header("X-UserID", response_body["userID"])
+    kong.service.request.set_header("X-UserID", response_body["userID"])
+    kong.service.request.set_header("X-User-Roles", table.concat(response_body["roles"], ", "))
   end
 
 end
