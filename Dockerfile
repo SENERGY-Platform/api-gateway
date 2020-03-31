@@ -1,10 +1,16 @@
 FROM kong:2.0.0
 
 COPY kong-middleman-plugin /kong-middleman-plugin
+USER 0:0
+RUN chown -R kong /kong-middleman-plugin
+USER kong
 WORKDIR /kong-middleman-plugin
 RUN luarocks make *.rockspec --local
 
 COPY kong-mockup-plugin /kong-mockup-plugin
+USER 0:0
+RUN chown -R kong /kong-mockup-plugin
+USER kong
 WORKDIR /kong-mockup-plugin
 RUN luarocks make *.rockspec --local
 
