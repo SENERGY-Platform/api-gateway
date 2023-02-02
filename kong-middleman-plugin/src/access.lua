@@ -122,6 +122,19 @@ function _M.execute(conf)
   else
     kong.service.request.set_header("X-UserID", response_body["userID"])
     kong.service.request.set_header("X-User-Roles", table.concat(response_body["roles"], ", "))
+    local consumer, err = kong.db.consumers:select_by_custom_id(response_body["userID"])
+    if err then
+        kong_response.exit(500, err)
+    end
+    if not consumer then
+        if not err then
+            consumer = kong.db.consumers:insert {
+                custom_id = response_body["userID"],
+                tags = {"keycloak", "middleman"}
+            }
+        end
+    end
+    kong.client.authenticate(consumer, nil)
   end
 
 end
