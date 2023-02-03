@@ -4,9 +4,8 @@ local ltn12 = require"ltn12"
 local JSON = require "kong.plugins.mockup.json"
 local cjson = require("cjson")
 
-local _M = {}
 
-function _M.execute(conf)    
+return function (self, conf)
   ngx.log(ngx.NOTICE,"start")
     local keycloak_url = conf.url .. "/auth/realms/master/protocol/openid-connect/token"
     local user_id = conf.userid
@@ -22,7 +21,10 @@ function _M.execute(conf)
     {
       url = keycloak_url,
       method = "POST",
-      headers = _M.compose_headers(payload:len()),
+      headers = {
+        ["Content-Type"] = "application/x-www-form-urlencoded",
+        ["Content-Length"] = payload:len()
+      },
       source = ltn12.source.string(payload),
       sink = ltn12.sink.table(response_body)
     }
@@ -38,12 +40,3 @@ function _M.execute(conf)
     ngx.req.set_header("Authorization", "Bearer " .. token)
     ngx.req.set_header("X-UserID", user_id)
 end
-
-function _M.compose_headers(len)
-    return {
-      ["Content-Type"] = "application/x-www-form-urlencoded",
-      ["Content-Length"] = len
-    }
-end
-
-return _M

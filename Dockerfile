@@ -1,4 +1,4 @@
-FROM kong:2.6.0
+FROM kong:3.1.1
 
 COPY kong-middleman-plugin /kong-middleman-plugin
 USER 0:0

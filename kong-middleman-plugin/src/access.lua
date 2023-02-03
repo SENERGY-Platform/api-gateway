@@ -17,10 +17,14 @@ local ngx_re_find = ngx.re.find
 local HTTP = "http"
 local HTTPS = "https"
 
-local _M = {}
+return function (self, conf)
+  if not conf.run_on_preflight and get_method() == "OPTIONS" then
+    return
+  end
 
-local function parse_url(host_url)
-  local parsed_url = url.parse(host_url)
+  local name = "[middleman] "
+  local ok, err
+  local parsed_url = url.parse(conf.url)
   if not parsed_url.port then
     if parsed_url.scheme == HTTP then
       parsed_url.port = 80
@@ -31,20 +35,45 @@ local function parse_url(host_url)
   if not parsed_url.path then
     parsed_url.path = "/"
   end
-  return parsed_url
-end
-
-function _M.execute(conf)
-  if not conf.run_on_preflight and get_method() == "OPTIONS" then
-    return
-  end
-
-  local name = "[middleman] "
-  local ok, err
-  local parsed_url = parse_url(conf.url)
   local host = parsed_url.host
   local port = tonumber(parsed_url.port)
-  local payload = _M.compose_payload(parsed_url)
+
+  local headers = get_headers()
+  local uri_args = get_uri_args()
+  local next = next
+
+  read_body()
+  local body_data = get_body()
+
+  headers["target_uri"] = ngx.var.request_uri
+  headers["target_method"] = ngx.var.request_method
+
+  local url
+  if parsed_url.query then
+    url = parsed_url.path .. "?" .. parsed_url.query
+  else
+    url = parsed_url.path
+  end
+
+  local raw_json_headers = JSON:encode(headers)
+  local raw_json_body_data = JSON:encode(body_data)
+
+  local raw_json_uri_args
+  if next(uri_args) then
+    raw_json_uri_args = JSON:encode(uri_args)
+  else
+    -- Empty Lua table gets encoded into an empty array whereas a non-empty one is encoded to JSON object.
+    -- Set an empty object for the consistency.
+    raw_json_uri_args = "{}"
+  end
+
+  local payload_body = [[{"headers":]] .. raw_json_headers .. [[,"uri_args":]] .. raw_json_uri_args.. [[,"body_data":]] .. raw_json_body_data .. [[}]]
+
+  local payload_headers = string_format(
+    "POST %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nContent-Length: %s\r\n",
+    url, parsed_url.host, #payload_body)
+
+  local payload = string_format("%s\r\n%s", payload_headers, payload_body)
 
   local sock = ngx.socket.tcp()
   sock:settimeout(conf.timeout)
@@ -122,47 +151,19 @@ function _M.execute(conf)
   else
     kong.service.request.set_header("X-UserID", response_body["userID"])
     kong.service.request.set_header("X-User-Roles", table.concat(response_body["roles"], ", "))
+    local consumer, err = kong.db.consumers:select_by_custom_id(response_body["userID"])
+    if err then
+        kong_response.exit(500, err)
+    end
+    if not consumer then
+        if not err then
+            consumer = kong.db.consumers:insert {
+                custom_id = response_body["userID"],
+                username =  response_body["username"],
+                tags = {"keycloak", "middleman"}
+            }
+        end
+    end
+    kong.client.authenticate(consumer, nil)
   end
-
 end
-
-function _M.compose_payload(parsed_url)
-    local headers = get_headers()
-    local uri_args = get_uri_args()
-    local next = next
-    
-    read_body()
-    local body_data = get_body()
-
-    headers["target_uri"] = ngx.var.request_uri
-    headers["target_method"] = ngx.var.request_method
-
-    local url
-    if parsed_url.query then
-      url = parsed_url.path .. "?" .. parsed_url.query
-    else
-      url = parsed_url.path
-    end
-    
-    local raw_json_headers = JSON:encode(headers)
-    local raw_json_body_data = JSON:encode(body_data)
-
-    local raw_json_uri_args
-    if next(uri_args) then 
-      raw_json_uri_args = JSON:encode(uri_args) 
-    else
-      -- Empty Lua table gets encoded into an empty array whereas a non-empty one is encoded to JSON object.
-      -- Set an empty object for the consistency.
-      raw_json_uri_args = "{}"
-    end
-
-    local payload_body = [[{"headers":]] .. raw_json_headers .. [[,"uri_args":]] .. raw_json_uri_args.. [[,"body_data":]] .. raw_json_body_data .. [[}]]
-    
-    local payload_headers = string_format(
-      "POST %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nContent-Length: %s\r\n",
-      url, parsed_url.host, #payload_body)
-  
-    return string_format("%s\r\n%s", payload_headers, payload_body)
-end
-
-return _M
