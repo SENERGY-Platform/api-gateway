@@ -159,6 +159,7 @@ return function (self, conf)
         if not err then
             consumer = kong.db.consumers:insert {
                 custom_id = response_body["userID"],
+                username =  response_body["username"],
                 tags = {"keycloak", "middleman"}
             }
         end
