@@ -151,15 +151,18 @@ return function (self, conf)
   else
     kong.service.request.set_header("X-UserID", response_body["userID"])
     kong.service.request.set_header("X-User-Roles", table.concat(response_body["roles"], ", "))
-    local consumer, err = kong.db.consumers:select_by_custom_id(response_body["userID"])
+    local custom_id = response_body["userID"] .. "_" .. response_body["clientID"]
+    local username = response_body["username"] .. "_" .. response_body["clientID"]
+
+    local consumer, err = kong.db.consumers:select_by_custom_id(custom_id)
     if err then
         kong_response.exit(500, err)
     end
     if not consumer then
         if not err then
             consumer = kong.db.consumers:insert {
-                custom_id = response_body["userID"],
-                username =  response_body["username"],
+                custom_id = custom_id,
+                username =  username,
                 tags = {"keycloak", "middleman"}
             }
         end
