@@ -1,4 +1,8 @@
-FROM kong:3.1.1
+FROM kong:3.7.1
+
+USER 0:0
+RUN mkdir /home/kong && chown kong /home/kong
+USER kong
 
 COPY kong-middleman-plugin /kong-middleman-plugin
 USER 0:0
