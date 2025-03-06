@@ -140,6 +140,7 @@ return function (self, conf)
   end
 
   if status_code > 299 then
+    ngx.log(ngx.ERR, name .. "got bad response from " .. host .. ":" .. tostring(port) .. ": ", body)
     return kong_response.exit(status_code, response_body)
   end
 end
