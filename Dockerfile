@@ -7,23 +7,22 @@ USER kong
 COPY kong-middleman-plugin /kong-middleman-plugin
 USER 0:0
 RUN chown -R kong /kong-middleman-plugin
-USER kong
 WORKDIR /kong-middleman-plugin
-RUN luarocks make *.rockspec --local
+RUN luarocks make *.rockspec
 
 COPY kong-budget-plugin /kong-budget-plugin
 USER 0:0
 RUN chown -R kong /kong-budget-plugin
-USER kong
 WORKDIR /kong-budget-plugin
-RUN luarocks make *.rockspec --local
+RUN luarocks make *.rockspec
 
 COPY kong-mockup-plugin /kong-mockup-plugin
 USER 0:0
 RUN chown -R kong /kong-mockup-plugin
-USER kong
 WORKDIR /kong-mockup-plugin
-RUN luarocks make *.rockspec --local
+RUN luarocks make *.rockspec
+
+USER kong
 
 ENV KONG_NINGX_PROX_PROXY_BUFFERS 4 256k
 ENV KONG_PLUGINS mockup,middleman,budget
