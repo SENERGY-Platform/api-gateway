@@ -23,6 +23,14 @@ return function (self, conf)
   end
 
   local name = "[middleman] "
+  ngx.log(ngx.ERR, name .. "request uri "  .. tostring(ngx.var.uri))
+
+  for _, pattern in ipairs(conf.blacklist_uri_pattern) do
+    if ngx.var.uri:match(pattern) then
+      return kong_response.exit(403, "Requested uri matches API gateway blacklist pattern!")
+    end
+  end
+
   local ok, err
   local parsed_url = url.parse(conf.url)
   if not parsed_url.port then
