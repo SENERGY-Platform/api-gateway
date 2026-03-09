@@ -23,7 +23,6 @@ return function (self, conf)
   end
 
   local name = "[middleman] "
-  ngx.log(ngx.ERR, name .. "request uri "  .. tostring(ngx.var.uri))
 
   for _, pattern in ipairs(conf.blacklist_uri_pattern) do
     if ngx.var.uri:match(pattern) then
