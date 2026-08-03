@@ -1,4 +1,4 @@
-FROM kong:3.9.1
+FROM kong:3.9.3
 
 USER 0:0
 RUN mkdir /home/kong && chown kong /home/kong
