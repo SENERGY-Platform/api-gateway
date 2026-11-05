@@ -28,9 +28,14 @@ return function (self, conf)
       sink = ltn12.sink.table(response_body)
     }
 
+    if not res then
+      kong.log.err("failed to request token from ", keycloak_url, ": ", code)
+      return kong_response.exit(502, "Bad Gateway: Could not request token from keycloak")
+    end
+
     if code > 299 then
       kong.log.err("token request to ", keycloak_url, " failed with status ", code)
-      return kong_response.send(code,table.concat(response_body))
+      return kong_response.exit(code, table.concat(response_body))
     end
 
     local response_decoded = cjson.decode(table.concat(response_body))

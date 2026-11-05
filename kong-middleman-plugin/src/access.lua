@@ -95,14 +95,14 @@ return function (self, conf)
     local _, err = sock:sslhandshake(true, host, false)
     if err then
       kong.log.err("failed SSL handshake with ", target, ": ", err)
-      return kong_response.exit(502, "Bad Gateway: Could establish HTTPS connection with auth-service")
+      return kong_response.exit(502, "Bad Gateway: Could not establish HTTPS connection with auth-service")
     end
   end
 
   ok, err = sock:send(payload)
   if not ok then
     kong.log.err("failed to send request to ", target, ": ", err)
-    return kong_response.exit(502, "Bad Gateway: Could send request to auth-service")
+    return kong_response.exit(502, "Bad Gateway: Could not send request to auth-service")
   end
 
   local line, err = sock:receive("*l")
