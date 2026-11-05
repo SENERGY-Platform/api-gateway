@@ -23,8 +23,6 @@ return function (self, conf)
     return
   end
 
-  local name = "[middleman] "
-
   for _, pattern in ipairs(conf.blacklist_uri_pattern) do
     if ngx.var.uri:match(pattern) then
       return kong_response.exit(403, "Requested uri matches API gateway blacklist pattern!")
@@ -85,31 +83,31 @@ return function (self, conf)
 
   local sock = ngx.socket.tcp()
   sock:settimeout(conf.timeout)
+  local target = host .. ":" .. tostring(port)
 
   ok, err = sock:connect(host, port)
   if not ok then
-    ngx.log(ngx.ERR, name .. "failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
+    kong.log.err("failed to connect to ", target, ": ", err)
     return kong_response.exit(502, "Bad Gateway: Could not connect to auth-service")
   end
 
   if parsed_url.scheme == HTTPS then
     local _, err = sock:sslhandshake(true, host, false)
     if err then
-      ngx.log(ngx.ERR, name .. "failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
-	  return kong_response.exit(502, "Bad Gateway: Could establish HTTPS connection with auth-service")
+      kong.log.err("failed SSL handshake with ", target, ": ", err)
+      return kong_response.exit(502, "Bad Gateway: Could establish HTTPS connection with auth-service")
     end
   end
 
   ok, err = sock:send(payload)
   if not ok then
-    ngx.log(ngx.ERR, name .. "failed to send data to " .. host .. ":" .. tostring(port) .. ": ", err)
-	return kong_response.exit(502, "Bad Gateway: Could send request to auth-service")
+    kong.log.err("failed to send request to ", target, ": ", err)
+    return kong_response.exit(502, "Bad Gateway: Could send request to auth-service")
   end
 
   local line, err = sock:receive("*l")
-
-  if err then 
-    ngx.log(ngx.ERR, name .. "failed to read response status from " .. host .. ":" .. tostring(port) .. ": ", err)
+  if err then
+    kong.log.err("failed to read status line from ", target, ": ", err)
     return kong_response.exit(502, "Bad Gateway: Could not read status code from auth-service")
   end
 
@@ -119,7 +117,7 @@ return function (self, conf)
   repeat
     line, err = sock:receive("*l")
     if err then
-      ngx.log(ngx.ERR, name .. "failed to read header " .. host .. ":" .. tostring(port) .. ": ", err)
+      kong.log.err("failed to read header from ", target, ": ", err)
       return kong_response.exit(502, "Bad Gateway: Could not read header from auth-service")
     end
 
@@ -132,19 +130,14 @@ return function (self, conf)
 
   local body, err = sock:receive(tonumber(headers['content-length']))
   if err then
-    ngx.log(ngx.ERR, name .. "failed to read body " .. host .. ":" .. tostring(port) .. ": ", err)
+    kong.log.err("failed to read body from ", target, ": ", err)
     return kong_response.exit(502, "Bad Gateway: Could not read body from auth-service")
   end
 
   ok, err = sock:setkeepalive(conf.keepalive)
   if not ok then
-    ngx.log(ngx.ERR, name .. "failed to keepalive to " .. host .. ":" .. tostring(port) .. ": ", err)
+    kong.log.err("failed to set keepalive for ", target, ": ", err)
     return kong_response.exit(502, "Bad Gateway: Could not set connection keepalive with auth-service")
-  end
-
-  if err then 
-    ngx.log(ngx.ERR, name .. "failed to read response from " .. host .. ":" .. tostring(port) .. ": ", err)
-	return kong_response.exit(502, "Bad Gateway: Could not read response from auth-service")
   end
 
   local response_body

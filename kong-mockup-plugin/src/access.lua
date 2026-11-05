@@ -6,7 +6,6 @@ local cjson = require("cjson")
 
 
 return function (self, conf)
-  ngx.log(ngx.NOTICE,"start")
     local keycloak_url = conf.url .. "/auth/realms/master/protocol/openid-connect/token"
     local user_id = conf.userid
     local user_name = conf.username 
@@ -17,7 +16,7 @@ return function (self, conf)
     
     local response_body = { }
     
-    local res, code, response_headers, status = http.request
+    local res, code = http.request
     {
       url = keycloak_url,
       method = "POST",
@@ -29,11 +28,10 @@ return function (self, conf)
       sink = ltn12.sink.table(response_body)
     }
 
-    ngx.log(ngx.NOTICE,status)
-    
     if code > 299 then
+      kong.log.err("token request to ", keycloak_url, " failed with status ", code)
       return kong_response.send(code,table.concat(response_body))
-    end 
+    end
 
     local response_decoded = cjson.decode(table.concat(response_body))
     local token = response_decoded["access_token"]
