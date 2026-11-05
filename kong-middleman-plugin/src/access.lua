@@ -1,6 +1,7 @@
 local JSON = require "kong.plugins.middleman.json"
 local cjson = require "cjson"
 local url = require "socket.url"
+local db_errors = require "kong.db.errors"
 
 local string_format = string.format
 
@@ -163,15 +164,33 @@ return function (self, conf)
 
     local consumer, err = kong.db.consumers:select_by_custom_id(custom_id)
     if err then
-        kong_response.exit(500, err)
+        kong.log.err("failed to read consumer: ", err)
+        return kong_response.exit(500, "Internal Server Error: Could not read consumer")
     end
     if not consumer then
-        if not err then
-            consumer = kong.db.consumers:insert {
-                custom_id = custom_id,
-                username =  username,
-                tags = {"keycloak", "middleman"}
-            }
+        local insert_err, insert_err_t
+        consumer, insert_err, insert_err_t = kong.db.consumers:insert {
+            custom_id = custom_id,
+            username =  username,
+            tags = {"keycloak", "middleman"}
+        }
+        if not consumer then
+            -- Parallel first requests of a new user and client pair all miss the select above and
+            -- insert. One insert wins, the others violate the unique constraint, so read the winner.
+            consumer, err = kong.db.consumers:select_by_custom_id(custom_id)
+            if not consumer then
+                -- Kong's message for a unique violation contains the conflicting value, which can
+                -- be the username, so log only the names of the conflicting fields.
+                if insert_err_t and insert_err_t.code == db_errors.codes.UNIQUE_VIOLATION then
+                    local fields = {}
+                    for field in pairs(insert_err_t.fields or {}) do
+                        fields[#fields + 1] = field
+                    end
+                    insert_err = insert_err_t.name .. " on " .. table.concat(fields, ", ")
+                end
+                kong.log.err("failed to create consumer: ", insert_err, ", read after insert: ", err or "not found")
+                return kong_response.exit(500, "Internal Server Error: Could not create consumer")
+            end
         end
     end
     kong.client.authenticate(consumer, nil)
